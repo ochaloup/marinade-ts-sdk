@@ -22,8 +22,7 @@
     "pretest": "pnpm lint",
     "test": "pnpm test:unit",
     "test:unit": "jest --preset ts-jest --roots '<rootDir>/src'",
-    "test:integration": "ts-node './test/runner/run.ts'",
-    "_test:integration": "jest --preset ts-jest --testTimeout 90000 --runInBand --roots '<rootDir>/test' -i $FILE",
+    "test:integration": "/home/chalda/my-testing/anchor/target/debug/anchor test",
     "lint": "gts lint",
     "lint:fix": "gts fix",
     "prepack": "pnpm test && pnpm build"
