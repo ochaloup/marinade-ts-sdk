@@ -1,7 +1,7 @@
 {
   "pubkey": "9wmxMQ2TFxYh918RzESjiA1dUXbdRAsXBd12JA1vwWQq",
   "account": {
-    "lamports": 100000000000000,
+    "lamports": 1000000000000000,
     "data": [
       "",
       "base64"

@@ -3,15 +3,8 @@ import { web3 } from '@coral-xyz/anchor'
 import { Marinade, MarinadeConfig, MarinadeUtils } from '../src'
 import * as TestWorld from './test-world'
 
-const MINIMUM_LAMPORTS_BEFORE_TEST = MarinadeUtils.solToLamports(2)
-
 describe('Marinade Referral', () => {
   beforeAll(async () => {
-    await TestWorld.provideMinimumLamportsBalance(
-      TestWorld.SDK_USER.publicKey,
-      MINIMUM_LAMPORTS_BEFORE_TEST
-    )
-
     // TODO: adding MSOL liquidity could be done in global setup of all tests probably
     const config = new MarinadeConfig({
       connection: TestWorld.CONNECTION,
@@ -37,7 +30,9 @@ describe('Marinade Referral', () => {
         MarinadeUtils.solToLamports(1)
       )
       const transactionSignature = await TestWorld.PROVIDER.sendAndConfirm(
-        transaction
+        transaction,
+        [],
+        { commitment: 'confirmed' }
       )
       console.log('Deposit tx:', transactionSignature)
     })

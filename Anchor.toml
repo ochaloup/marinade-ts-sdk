@@ -25,7 +25,22 @@ address = "dstK1PDHNoKN9MdmftRzsEbXP5T1FTBiQBm1Ee3meVd"
 program = "fixtures/programs/directed_stake.so"
 
 [test.validator]
-slots_per_epoch = "50"
+slots_per_epoch = "32"
 
 [[test.validator.account_dir]]
 directory = "fixtures/solana-accounts/"
+
+[[test.validator.account_dir]]
+directory = "fixtures/solana-accounts/marinade-referral"
+
+[[test.validator.account_dir]]
+directory = "fixtures/solana-accounts/marinade-finance"
+
+[[test.validator.account_dir]]
+directory = "fixtures/solana-accounts/marinade-finance/duplication-flag"
+
+[[test.validator.account_dir]]
+directory = "fixtures/solana-accounts/marinade-finance/vote-account"
+
+[[test.validator.account_dir]]
+directory = "fixtures/solana-accounts/directed-stake"

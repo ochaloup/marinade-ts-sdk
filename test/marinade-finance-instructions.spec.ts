@@ -6,68 +6,40 @@ import {
   DirectedStakeSdk,
   findVoteRecords,
 } from '@marinade.finance/directed-stake-sdk'
-
-const MINIMUM_LAMPORTS_BEFORE_TEST = MarinadeUtils.solToLamports(2.5)
-
-const addValidatorAccounts = async ({
-  marinade,
-  validatorVote,
-  rentPayer,
-}: {
-  marinade: Marinade
-  validatorVote: web3.PublicKey
-  rentPayer: web3.PublicKey
-}): Promise<MarinadeFinanceIdl.Instruction.AddValidator.Accounts> => {
-  const marinadeState = await marinade.getMarinadeState()
-  return {
-    state: marinadeState.marinadeStateAddress,
-    validatorList: marinadeState.state.validatorSystem.validatorList.account,
-    rentPayer,
-    rent: web3.SYSVAR_RENT_PUBKEY,
-    validatorVote,
-    managerAuthority: marinadeState.state.validatorSystem.managerAuthority,
-    duplicationFlag: await marinadeState.validatorDuplicationFlag(
-      validatorVote
-    ),
-    clock: web3.SYSVAR_CLOCK_PUBKEY,
-    systemProgram: web3.SystemProgram.programId,
-  }
-}
-
-const addValidatorInstruction = ({
-  marinade,
-  accounts,
-  validatorScore,
-}: {
-  marinade: Marinade
-  accounts: MarinadeFinanceIdl.Instruction.AddValidator.Accounts
-  validatorScore: BN
-}): web3.TransactionInstruction =>
-  marinade.marinadeFinanceProgram.program.instruction.addValidator(
-    validatorScore,
-    { accounts }
-  )
+import { getParsedStakeAccountInfo } from '../src/util'
 
 const addValidatorInstructionBuilder = async ({
   marinade,
   validatorScore,
-  ...accountsArgs
-}: { marinade: Marinade; validatorScore: BN } & Parameters<
-  typeof addValidatorAccounts
->[0]) =>
-  addValidatorInstruction({
-    marinade,
-    validatorScore,
-    accounts: await addValidatorAccounts({ marinade, ...accountsArgs }),
-  })
+  validatorVote,
+  rentPayer,
+}: {
+  marinade: Marinade
+  validatorScore: number
+  validatorVote: web3.PublicKey
+  rentPayer: web3.PublicKey
+}): Promise<web3.TransactionInstruction> => {
+  const marinadeState = await marinade.getMarinadeState()
+  return await marinade.marinadeFinanceProgram.program.methods
+    .addValidator(validatorScore)
+    .accountsStrict({
+      state: marinadeState.marinadeStateAddress,
+      validatorList: marinadeState.state.validatorSystem.validatorList.account,
+      rentPayer,
+      rent: web3.SYSVAR_RENT_PUBKEY,
+      validatorVote,
+      managerAuthority: marinadeState.state.validatorSystem.managerAuthority,
+      duplicationFlag: await marinadeState.validatorDuplicationFlag(
+        validatorVote
+      ),
+      clock: web3.SYSVAR_CLOCK_PUBKEY,
+      systemProgram: web3.SystemProgram.programId,
+    })
+    .instruction()
+}
 
 describe('Marinade Finance', () => {
   beforeAll(async () => {
-    await TestWorld.provideMinimumLamportsBalance(
-      TestWorld.SDK_USER.publicKey,
-      MINIMUM_LAMPORTS_BEFORE_TEST
-    )
-
     const config = new MarinadeConfig({
       connection: TestWorld.CONNECTION,
       publicKey: TestWorld.SDK_USER.publicKey,
@@ -102,10 +74,7 @@ describe('Marinade Finance', () => {
 
     it('deposits SOL, only creates ATA when necessary', async () => {
       const newAccount = new web3.Keypair()
-      await TestWorld.provideMinimumLamportsBalance(
-        newAccount.publicKey,
-        MarinadeUtils.solToLamports(2.5)
-      )
+      await TestWorld.transferMinimumLamportsBalance(newAccount.publicKey)
 
       const provider = new AnchorProvider(
         TestWorld.CONNECTION,
@@ -159,6 +128,12 @@ describe('Marinade Finance', () => {
       const validatorVoteAddress = new web3.PublicKey(
         '5MMCR4NbTZqjthjLGywmeT66iwE9J9f7kjtxzJjwfUx2'
       )
+      const config = new MarinadeConfig({
+        connection: TestWorld.CONNECTION,
+        publicKey: TestWorld.SDK_USER.publicKey,
+      })
+      const marinade = new Marinade(config)
+
       const directedStakeSdk = new DirectedStakeSdk({
         connection: TestWorld.CONNECTION,
         wallet: {
@@ -174,11 +149,17 @@ describe('Marinade Finance', () => {
         MarinadeUtils.solToLamports(0.01),
         { directToValidatorVoteAddress: validatorVoteAddress }
       )
-      const transactionSignature = await TestWorld.PROVIDER.sendAndConfirm(
-        transaction,
-        [],
-        { commitment: 'finalized' }
-      )
+      let transactionSignature
+      try {
+        transactionSignature = await TestWorld.PROVIDER.sendAndConfirm(
+          transaction,
+          [],
+          { commitment: 'confirmed' }
+        )
+      } catch (e) {
+        console.log(e)
+        throw e
+      }
       console.log(
         'Deposit tx:',
         transactionSignature,
@@ -223,7 +204,7 @@ describe('Marinade Finance', () => {
       const transactionSignature = await TestWorld.PROVIDER.sendAndConfirm(
         transaction,
         [],
-        { commitment: 'finalized' }
+        { commitment: 'confirmed' }
       )
       console.log(
         'Deposit tx:',
@@ -265,7 +246,7 @@ describe('Marinade Finance', () => {
       const transactionSignature = await TestWorld.PROVIDER.sendAndConfirm(
         transaction,
         [],
-        { commitment: 'finalized' }
+        { commitment: 'confirmed' }
       )
       console.log(
         'Deposit tx:',
@@ -352,7 +333,7 @@ describe('Marinade Finance', () => {
       })
       tx.add(ix)
       await TestWorld.PROVIDER.sendAndConfirm(tx, [])
-      const timeoutSeconds = 30
+      const timeoutSeconds = 30 // TODO: 30 seconds to fit is considered to slotsPerEpoch to minimal 32
       const startTime = Date.now()
       stakeStatus = await TestWorld.CONNECTION.getStakeActivation(
         stakeAccount.publicKey
@@ -370,15 +351,11 @@ describe('Marinade Finance', () => {
         }
       }
 
-      const authKeypair = await TestWorld.parseKeypair(
-        './resources/tests/keys/marinade-state-admin-keypair.json'
-      )
       expect(
         (
           await marinade.getMarinadeState()
         ).state.validatorSystem.managerAuthority.toBase58()
-      ).toEqual(authKeypair.publicKey.toBase58())
-
+      ).toEqual(TestWorld.MARINADE_STATE_ADMIN.publicKey.toBase58())
       const stakeAccountData = await getParsedStakeAccountInfo(
         TestWorld.PROVIDER,
         stakeAccount.publicKey
@@ -395,12 +372,14 @@ describe('Marinade Finance', () => {
       await marinade.getMarinadeState()
       const addIx = await addValidatorInstructionBuilder({
         marinade,
-        validatorScore: new BN(1000),
+        validatorScore: 1000,
         rentPayer: TestWorld.PROVIDER.wallet.publicKey,
         validatorVote: voteAccount,
       })
       const addTx = new web3.Transaction().add(addIx)
-      await TestWorld.PROVIDER.sendAndConfirm(addTx, [authKeypair])
+      await TestWorld.PROVIDER.sendAndConfirm(addTx, [
+        TestWorld.MARINADE_STATE_ADMIN,
+      ])
 
       // Make sure stake account still exist, if this test is included
       const { transaction } = await marinade.depositStakeAccount(

@@ -1,7 +1,7 @@
 import { AnchorProvider, BN, Wallet, web3 } from '@coral-xyz/anchor'
 import { MarinadeUtils } from '../src'
-import fs from 'fs/promises'
 
+export const MINIMUM_LAMPORTS_BEFORE_TEST = MarinadeUtils.solToLamports(2.5)
 export const LAMPORTS_AIRDROP_CAP = MarinadeUtils.solToLamports(2)
 
 // 9wmxMQ2TFxYh918RzESjiA1dUXbdRAsXBd12JA1vwWQq
@@ -13,9 +13,24 @@ export const SDK_USER = web3.Keypair.fromSecretKey(
     131, 129, 21, 8, 221, 100, 249, 221, 177, 114, 143, 231, 102, 250,
   ])
 )
-// export const SDK_USER = Wallet.local().payer
-// export const SDK_USER = new web3.Keypair()
+// for local validator testing the SDK USER is a predefined account having enough SOL
 console.log('SDK User', SDK_USER.publicKey.toBase58())
+
+// 2APsntHoKXCeHWfxZ49ADwc5XrdB8GGmxK34jVXRYZyV
+export const MARINADE_STATE_ADMIN = web3.Keypair.fromSecretKey(
+  new Uint8Array([
+    88, 46, 254, 11, 76, 182, 135, 63, 92, 56, 112, 173, 43, 58, 65, 74, 13, 97,
+    203, 36, 231, 178, 221, 92, 234, 200, 208, 114, 32, 230, 251, 217, 17, 67,
+    199, 164, 137, 164, 176, 85, 236, 29, 246, 150, 180, 35, 94, 120, 30, 17,
+    18, 138, 253, 155, 218, 23, 84, 125, 225, 110, 37, 142, 253, 100,
+  ])
+)
+
+// used for the base tests that cannot start the localhost provider
+export const PROVIDER_URL_DEVNET = 'https://api.devnet.solana.com'
+export const CONNECTION_DEVNET = new web3.Connection(PROVIDER_URL_DEVNET, {
+  commitment: 'confirmed',
+})
 
 export const PROVIDER_URL = 'http://localhost:8899'
 export const CONNECTION = new web3.Connection(PROVIDER_URL, {
@@ -46,7 +61,7 @@ export const airdrop = async (to: web3.PublicKey, amountLamports: number) => {
 export const getBalanceLamports = async (account: web3.PublicKey) =>
   CONNECTION.getBalance(account)
 
-export const provideMinimumLamportsBalance = async (
+export const airdropMinimumLamportsBalance = async (
   account: web3.PublicKey,
   minimumLamportsBalance: BN
 ) => {
@@ -64,6 +79,20 @@ export const provideMinimumLamportsBalance = async (
     await airdrop(account, airdropLamports.toNumber())
     remainingLamportsToAirdrop = remainingLamportsToAirdrop.sub(airdropLamports)
   }
+}
+
+export async function transferMinimumLamportsBalance(
+  address: web3.PublicKey,
+  provider: AnchorProvider = PROVIDER,
+  lamports: BN = MINIMUM_LAMPORTS_BEFORE_TEST
+): Promise<string> {
+  const ix = web3.SystemProgram.transfer({
+    fromPubkey: provider.publicKey, // wallet address, will sign
+    toPubkey: address,
+    lamports: BigInt(lamports.toString()),
+  })
+  const tx = new web3.Transaction().add(ix)
+  return await provider.sendAndConfirm(tx)
 }
 
 export const simulateTransaction = async (transaction: web3.Transaction) => {
@@ -102,10 +131,4 @@ export const getVoteAccounts = async (): Promise<web3.VoteAccountStatus> => {
 
 export const sleep = async (ms: number) => {
   return new Promise(resolve => setTimeout(resolve, ms))
-}
-
-export async function parseKeypair(path: string) {
-  return web3.Keypair.fromSecretKey(
-    new Uint8Array(JSON.parse(await fs.readFile(path, 'utf-8')))
-  )
 }
