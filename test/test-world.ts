@@ -1,10 +1,19 @@
 import { AnchorProvider, BN, Wallet, web3 } from '@coral-xyz/anchor'
 import { Marinade, MarinadeUtils } from '../src'
-import { STAKE_ACCOUNT } from './setup/globalSetup'
 import { getParsedStakeAccountInfo } from '../src/util'
 
 export const MINIMUM_LAMPORTS_BEFORE_TEST = MarinadeUtils.solToLamports(2.5)
 export const LAMPORTS_AIRDROP_CAP = MarinadeUtils.solToLamports(2)
+
+// 6LHBDKtwo69UKxWgY15vE3QykP4uf5DzZUgBiMzhEWpf
+export const STAKE_ACCOUNT: web3.Keypair = web3.Keypair.fromSecretKey(
+  new Uint8Array([
+    18, 172, 235, 211, 112, 44, 110, 149, 4, 64, 227, 34, 56, 159, 198, 19, 146,
+    61, 87, 180, 155, 178, 178, 146, 241, 198, 208, 91, 79, 219, 120, 107, 79,
+    58, 194, 166, 138, 20, 154, 53, 107, 169, 158, 49, 96, 130, 207, 101, 203,
+    106, 176, 103, 94, 13, 170, 98, 66, 69, 124, 209, 44, 76, 190, 136,
+  ])
+)
 
 // 9wmxMQ2TFxYh918RzESjiA1dUXbdRAsXBd12JA1vwWQq
 export const SDK_USER = web3.Keypair.fromSecretKey(
@@ -175,7 +184,7 @@ export async function waitForDelegationActivation({
   }
 }
 
-async function addValidatorInstructionBuilder({
+export async function addValidatorInstructionBuilder({
   marinade,
   validatorScore,
   validatorVote,
@@ -224,11 +233,23 @@ export async function waitForValidatorBeInMarinade({
     voteAccount = await getSingleVoteAccount()
   }
 
+  // check if the validator is part of Marinade already
+  const marinadeState = await marinade.getMarinadeState()
+  const validators = await marinadeState.getValidatorRecords()
+  if (
+    validators.validatorRecords.findIndex(
+      v => v.validatorAccount.toBase58() === voteAccount!.toBase58()
+    ) !== -1
+  ) {
+    // validator is part of the Marinade already, doing nothing
+    return
+  }
+
   // need to sign the add validator instruction with the marinade admin key
   // here expecting the marinade admin key is configured in marinade state
-  expect(
-    (await marinade.getMarinadeState()).state.validatorSystem.managerAuthority
-  ).toEqual(MARINADE_STATE_ADMIN.publicKey)
+  expect(marinadeState.state.validatorSystem.managerAuthority).toEqual(
+    MARINADE_STATE_ADMIN.publicKey
+  )
 
   const stakeAccountData = await getParsedStakeAccountInfo(
     provider,
@@ -242,14 +263,15 @@ export async function waitForValidatorBeInMarinade({
   }
 
   // for a validator could be added into Marinade, it must be activated for at least 2 epochs
+  // i.e., error: Deposited stake ... is not activated yet. Wait for #2 epoch
   const startTime = Date.now()
   while (
-    (await provider.connection.getEpochInfo()).epoch <
+    (await provider.connection.getEpochInfo()).epoch <=
     stakeAccountActivationEpoch.toNumber() + 2
   ) {
     if (Date.now() - startTime > timeoutSeconds * 1000) {
       throw new Error(
-        `Stake account ${stakeAccount.toBase58()} activation timeout after ${timeoutSeconds} seconds`
+        `Marinade add validator timeouted to add ${stakeAccount.toBase58()} timeout after ${timeoutSeconds} seconds`
       )
     }
     await sleep(1000)

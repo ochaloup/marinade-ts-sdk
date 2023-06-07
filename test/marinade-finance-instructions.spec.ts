@@ -6,7 +6,7 @@ import {
   DirectedStakeSdk,
   findVoteRecords,
 } from '@marinade.finance/directed-stake-sdk'
-import { STAKE_ACCOUNT } from './setup/globalSetup'
+import { getParsedStakeAccountInfo } from '../src/util'
 
 describe('Marinade Finance', () => {
   beforeAll(async () => {
@@ -264,8 +264,40 @@ describe('Marinade Finance', () => {
       })
       const marinade = new Marinade(config)
 
+      // for a validator could be deposited, it must be activated for at least 2 epochs
+      // i.e., error: Deposited stake ... is not activated yet. Wait for #2 epoch
+      const stakeAccountData = await getParsedStakeAccountInfo(
+        TestWorld.PROVIDER,
+        TestWorld.STAKE_ACCOUNT.publicKey
+      )
+      const stakeAccountActivationEpoch = stakeAccountData.activationEpoch
+      if (stakeAccountActivationEpoch === null) {
+        throw new Error(
+          'Expected stake account to be already activated. Test setup error.'
+        )
+      }
+      const timeoutSeconds = 30
+      const startTime = Date.now()
+      while (
+        (await TestWorld.PROVIDER.connection.getEpochInfo()).epoch <=
+        stakeAccountActivationEpoch.toNumber() + 2
+      ) {
+        if (Date.now() - startTime > timeoutSeconds * 1000) {
+          throw new Error(
+            `Marinade add validator timeouted to add ${TestWorld.STAKE_ACCOUNT.publicKey.toBase58()} timeout after ${timeoutSeconds} seconds`
+          )
+        }
+        await TestWorld.sleep(1000)
+        console.log('Waiting for deposit command epoch activation') // TODO: remove this console.log
+      }
+      console.log(
+        `Stake account ${TestWorld.STAKE_ACCOUNT.publicKey.toBase58()} for deposit command activated after ${
+          (Date.now() - startTime) / 1000
+        } s`
+      )
+
       const { transaction } = await marinade.depositStakeAccount(
-        STAKE_ACCOUNT.publicKey
+        TestWorld.STAKE_ACCOUNT.publicKey
       )
 
       const { executedSlot, simulatedSlot, err, logs, unitsConsumed } =
@@ -289,7 +321,7 @@ describe('Marinade Finance', () => {
 
       // Make sure stake account still exist, if this test is included
       const { transaction } = await marinade.liquidateStakeAccount(
-        stakeAccount.publicKey
+        TestWorld.STAKE_ACCOUNT.publicKey
       )
       const { executedSlot, simulatedSlot, err, logs, unitsConsumed } =
         await TestWorld.simulateTransaction(transaction)
