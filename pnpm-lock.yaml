@@ -20,6 +20,9 @@ importers:
         specifier: ^5.0.0
         version: 5.0.0
     devDependencies:
+      '@jest/globals':
+        specifier: ^29.5.0
+        version: 29.5.0
       '@solana/web3.js':
         specifier: ^1.74.0
         version: 1.75.0

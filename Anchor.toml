@@ -1,5 +1,5 @@
 # There is no contract in this repository
-# This file is used only as a marker for anchor to start test validator for local tests
+# This file is used only as configuration file when starting localhost test validator
 
 [features]
 seeds = false
@@ -10,7 +10,7 @@ cluster = "Localnet"
 wallet = "~/.config/solana/id.json"
 
 [scripts]
-test = "jest --preset ts-jest --testTimeout 90000 --runInBand --roots test"
+test = "jest --runInBand marinade-finance-instructions.spec.ts"
 
 [[test.genesis]]
 address = "MarBmsSgKXdrN1egZf5sqe1TMai9K1rChYNDJgjq7aD"
