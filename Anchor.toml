@@ -10,7 +10,8 @@ cluster = "Localnet"
 wallet = "~/.config/solana/id.json"
 
 [scripts]
-test = "jest --runInBand marinade-finance-instructions.spec.ts"
+# 'recursive' call: pnpm test:integration -> anchor test (to Anchor.toml)  -> pnpm _test:integration
+test = "pnpm _test:integration"
 
 [[test.genesis]]
 address = "MarBmsSgKXdrN1egZf5sqe1TMai9K1rChYNDJgjq7aD"
