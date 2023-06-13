@@ -132,9 +132,9 @@ export async function simulateTransaction(transaction: web3.Transaction) {
   }
 }
 
-let singleVotePubkey: web3.PublicKey | undefined
-export async function getSingleVoteAccountPubkey(): Promise<web3.PublicKey> {
-  if (singleVotePubkey === undefined) {
+let solanaTestValidatorVotePubkey: web3.PublicKey | undefined
+export async function getSolanaTestValidatorVoteAccountPubkey(): Promise<web3.PublicKey> {
+  if (solanaTestValidatorVotePubkey === undefined) {
     const voteAccounts = await CONNECTION.getVoteAccounts()
     // expecting run on localhost and only one vote account is available, i.e., one validator solana-test-validator
     if (voteAccounts.current.length !== 1) {
@@ -143,10 +143,12 @@ export async function getSingleVoteAccountPubkey(): Promise<web3.PublicKey> {
           ` Number of vote accounts found: ${voteAccounts.current.length}`
       )
     }
-    singleVotePubkey = new web3.PublicKey(voteAccounts.current[0].votePubkey)
+    solanaTestValidatorVotePubkey = new web3.PublicKey(
+      voteAccounts.current[0].votePubkey
+    )
   }
 
-  return singleVotePubkey
+  return solanaTestValidatorVotePubkey
 }
 
 // Used for local solana-test-validator testing.

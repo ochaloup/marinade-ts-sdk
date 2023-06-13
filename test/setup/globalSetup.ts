@@ -7,7 +7,7 @@ require('ts-node/register')
 export default async (): Promise<void> => {
   // --- GETTING VOTE ACCOUNT of solana-test-validator ---
   // as there is only solana-test-validator, it's a single vote account in the test network
-  const votePubkey = await TestWorld.getSingleVoteAccountPubkey()
+  const votePubkey = await TestWorld.getSolanaTestValidatorVoteAccountPubkey()
 
   // --- CREATING STAKE ACCOUNT and DELEGATE ---
   // create a stake account that will be used later in all tests

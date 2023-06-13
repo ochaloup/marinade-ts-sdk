@@ -95,10 +95,8 @@ describe('Marinade Finance', () => {
     })
 
     it('deposit SOL and direct the stake', async () => {
-      // TODO: this has to be changed for validator vote address existing in the network (created at the start of the testsuite)
-      const validatorVoteAddress = new web3.PublicKey(
-        '5MMCR4NbTZqjthjLGywmeT66iwE9J9f7kjtxzJjwfUx2'
-      )
+      const validatorVoteAddress =
+        await TestWorld.getSolanaTestValidatorVoteAccountPubkey()
       const config = new MarinadeConfig({
         connection: TestWorld.CONNECTION,
         publicKey: TestWorld.SDK_USER.publicKey,
@@ -148,10 +146,8 @@ describe('Marinade Finance', () => {
     })
 
     it('deposit SOL and redirect the stake', async () => {
-      // TODO: this has to be changed for validator vote address existing in the network (created at the start of the testsuite)
-      const validatorVoteAddress2 = new web3.PublicKey(
-        '5ZWgXcyqrrNpQHCme5SdC5hCeYb2o3fEJhF7Gok3bTVN'
-      )
+      const validatorVoteAddress2 =
+        await TestWorld.getSolanaTestValidatorVoteAccountPubkey()
       const config = new MarinadeConfig({
         connection: TestWorld.CONNECTION,
         publicKey: TestWorld.SDK_USER.publicKey,
