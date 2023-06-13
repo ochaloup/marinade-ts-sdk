@@ -69,7 +69,8 @@
     "jsbi": "^4.3.0"
   },
   "engines": {
-    "node": ">=16.0.0"
+    "node": ">=16.0.0",
+    "anchor": ">=0.28.0"
   },
   "lint-staged": {
     "src/**/*.{js,jsx,ts,tsx}": [

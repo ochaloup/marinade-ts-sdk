@@ -20,7 +20,7 @@ jobs:
         run: |
           ln -s /root/.avm $HOME/
           avm list
-          avm use 0.27.0
+          avm use 0.28.0
           anchor --version
       - name: Setup cluster and generate keypair
         run: |
