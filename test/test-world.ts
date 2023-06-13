@@ -156,30 +156,85 @@ export async function getSingleVoteAccount(): Promise<web3.PublicKey> {
   return new web3.PublicKey(voteAccounts.current[0].votePubkey)
 }
 
-// for local validator testing the new stake account with delegation is configured
-// for test validator by global jest setup,
-// this function waits for the delegation being activated, or after timetout throws an error
+// Used for local solana-test-validator testing.
+// The globalSetup.ts creates stake account and before it can be used one needs to wait for its activation.
+// This function waits for the stake account to be activated.
+// Plus, parameter 'activatedAtLeastFor' defines how many epochs the stake account has to be activated for to be considered OK.
+//       The epoch activation for at least some epochs is required by Marinade to be able to delegate.
+// ---
+// When cannot be activated until timeout elapses an error is thrown.
+// (The timeout is considered separately for waiting for activation and for epochs).
 // ---
 // NOTE: the Anchor.toml configures slots_per_epoch to 32,
 //       so the timeout of 30 seconds should be enough for the stake account to be activated
-export async function waitForDelegationActivation({
+export async function waitForStakeAccountActivation({
   stakeAccount = STAKE_ACCOUNT.publicKey,
   connection = CONNECTION,
   timeoutSeconds = 30,
+  activatedAtLeastFor = 0,
 }: {
   stakeAccount?: web3.PublicKey
   connection?: web3.Connection
   timeoutSeconds?: number
+  activatedAtLeastFor?: number
 }) {
-  const startTime = Date.now()
-  let stakeStatus = await connection.getStakeActivation(stakeAccount)
-  while (stakeStatus.state !== 'active') {
-    await sleep(1000)
-    stakeStatus = await connection.getStakeActivation(stakeAccount)
-    if (Date.now() - startTime > timeoutSeconds * 1000) {
+  // 1. waiting for the stake account to be activated
+  {
+    const startTime = Date.now()
+    let stakeStatus = await connection.getStakeActivation(stakeAccount)
+    while (stakeStatus.state !== 'active') {
+      await sleep(1000)
+      stakeStatus = await connection.getStakeActivation(stakeAccount)
+      if (Date.now() - startTime > timeoutSeconds * 1000) {
+        throw new Error(
+          `Stake account ${stakeAccount.toBase58()} was not activated in timeout of ${timeoutSeconds} seconds`
+        )
+      }
+    }
+  }
+
+  // 2. the stake account is active, but it needs to be active for at least waitForEpochs epochs
+  if (activatedAtLeastFor > 0) {
+    const stakeAccountData = await getParsedStakeAccountInfo(
+      connection,
+      stakeAccount
+    )
+    const stakeAccountActivationEpoch = stakeAccountData.activationEpoch
+    if (stakeAccountActivationEpoch === null) {
       throw new Error(
-        `Stake account ${stakeAccount.toBase58()} activation timeout after ${timeoutSeconds} seconds`
+        'Expected stake account to be already activated. Unexpected setup error stake account:' +
+          stakeAccountData
       )
+    }
+
+    const startTime = Date.now()
+    let currentEpoch = (await connection.getEpochInfo()).epoch
+    if (
+      currentEpoch <
+      stakeAccountActivationEpoch.toNumber() + activatedAtLeastFor
+    ) {
+      console.debug(
+        `Waiting for the stake account ${stakeAccount.toBase58()} to be active at least for ${activatedAtLeastFor} epochs ` +
+          `currently active for ${
+            currentEpoch - stakeAccountActivationEpoch.toNumber()
+          } epochs`
+      )
+    }
+    while (
+      currentEpoch <
+      stakeAccountActivationEpoch.toNumber() + activatedAtLeastFor
+    ) {
+      if (Date.now() - startTime > timeoutSeconds * 1000) {
+        throw new Error(
+          `Stake account ${stakeAccount.toBase58()} was activated but timeout ${timeoutSeconds} elapsed when waiting ` +
+            `for ${activatedAtLeastFor} epochs the account to be activated, it's activated only for ` +
+            `${
+              currentEpoch - stakeAccountActivationEpoch.toNumber()
+            } epochs at this time`
+        )
+      }
+      await sleep(1000)
+      currentEpoch = (await connection.getEpochInfo()).epoch
     }
   }
 }
@@ -246,37 +301,17 @@ export async function waitForValidatorBeInMarinade({
   }
 
   // need to sign the add validator instruction with the marinade admin key
-  // here expecting the marinade admin key is configured in marinade state
+  // here expecting the test admin key is configured in the marinade state onchain
   expect(marinadeState.state.validatorSystem.managerAuthority).toEqual(
     MARINADE_STATE_ADMIN.publicKey
   )
 
-  const stakeAccountData = await getParsedStakeAccountInfo(
-    provider,
-    stakeAccount
-  )
-  const stakeAccountActivationEpoch = stakeAccountData.activationEpoch
-  if (stakeAccountActivationEpoch === null) {
-    throw new Error(
-      'Expected stake account to be already activated. Test setup error.'
-    )
-  }
-
-  // for a validator could be added into Marinade, it must be activated for at least 2 epochs
-  // i.e., error: Deposited stake ... is not activated yet. Wait for #2 epoch
-  const startTime = Date.now()
-  while (
-    (await provider.connection.getEpochInfo()).epoch <=
-    stakeAccountActivationEpoch.toNumber() + 2
-  ) {
-    if (Date.now() - startTime > timeoutSeconds * 1000) {
-      throw new Error(
-        `Marinade add validator timeouted to add ${stakeAccount.toBase58()} timeout after ${timeoutSeconds} seconds`
-      )
-    }
-    await sleep(1000)
-    console.log('Waiting for epoch activation') // TODO: remove this console.log
-  }
+  await waitForStakeAccountActivation({
+    connection: provider.connection,
+    stakeAccount,
+    timeoutSeconds,
+    activatedAtLeastFor: 2,
+  })
 
   const addIx = await addValidatorInstructionBuilder({
     marinade,

@@ -1,5 +1,3 @@
-import { web3 } from '@coral-xyz/anchor'
-
 import { Marinade, MarinadeConfig, MarinadeUtils } from '../src'
 import * as TestWorld from './test-world'
 
@@ -58,19 +56,20 @@ describe('Marinade Referral', () => {
   })
 
   describe('liquidateStakeAccount', () => {
-    // TODO: for this test to work we need to have defined the stake account
-    // the same processing as in marinade-referral.spec.ts/'deposits stake account (simulate)' is needed
-    // we should create the processing of stake account creation in global setup of all tests
-    it.skip('liquidates stake account (simulation)', async () => {
+    it('liquidates stake account (simulation)', async () => {
       const config = new MarinadeConfig({
         connection: TestWorld.CONNECTION,
         publicKey: TestWorld.SDK_USER.publicKey,
       })
       const marinade = new Marinade(config)
 
-      // Make sure stake account still exist, if this test is included
+      await TestWorld.waitForStakeAccountActivation({
+        connection: TestWorld.CONNECTION,
+        stakeAccount: TestWorld.STAKE_ACCOUNT.publicKey,
+        activatedAtLeastFor: 2,
+      })
       const { transaction } = await marinade.liquidateStakeAccount(
-        new web3.PublicKey('FPFQJ7SNx2ZgpJ4nSuqzAhpofDdKMxN9sT8FDXpxGxng')
+        TestWorld.STAKE_ACCOUNT.publicKey
       )
 
       const { executedSlot, simulatedSlot, err, logs, unitsConsumed } =

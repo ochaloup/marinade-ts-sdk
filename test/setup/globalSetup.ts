@@ -40,28 +40,14 @@ export default async (): Promise<void> => {
   }
 
   // --- WAITING FOR STAKE ACCOUNT to be READY ---
-  // NOTE: the Anchor.toml configures slots_per_epoch to 32,
-  //       the timeout of 30 seconds should be enough for the stake account to be activated
-  const timeoutSeconds = 30
   const startTime = Date.now()
-  let stakeStatus = await TestWorld.CONNECTION.getStakeActivation(
-    TestWorld.STAKE_ACCOUNT.publicKey
-  )
   console.log(
-    `Waiting 2 epochs for stake account ${TestWorld.STAKE_ACCOUNT.publicKey.toBase58()} to be activated`
+    `Waiting for stake account ${TestWorld.STAKE_ACCOUNT.publicKey.toBase58()} to be activated`
   )
-  while (stakeStatus.state !== 'active') {
-    await TestWorld.sleep(1000)
-    stakeStatus = await TestWorld.CONNECTION.getStakeActivation(
-      TestWorld.STAKE_ACCOUNT.publicKey
-    )
-    if (Date.now() - startTime > timeoutSeconds * 1000) {
-      throw new Error(
-        `Jest global setup error: stake account ${TestWorld.STAKE_ACCOUNT.publicKey.toBase58()}` +
-          ` activation timeout after ${timeoutSeconds} seconds`
-      )
-    }
-  }
+  TestWorld.waitForStakeAccountActivation({
+    stakeAccount: TestWorld.STAKE_ACCOUNT.publicKey,
+    connection: TestWorld.CONNECTION,
+  })
   console.log(
     `Stake account ${TestWorld.STAKE_ACCOUNT.publicKey.toBase58()} is activated after ${
       (Date.now() - startTime) / 1000
