@@ -1,5 +1,5 @@
 import { AnchorProvider, BN, Wallet, web3 } from '@coral-xyz/anchor'
-import { Marinade, MarinadeUtils } from '../src'
+import { MarinadeUtils } from '../src'
 import { getParsedStakeAccountInfo } from '../src/util'
 
 export const MINIMUM_LAMPORTS_BEFORE_TEST = MarinadeUtils.solToLamports(2.5)
@@ -132,28 +132,21 @@ export async function simulateTransaction(transaction: web3.Transaction) {
   }
 }
 
-let voteAccounts: web3.VoteAccountStatus | undefined
-export async function getVoteAccounts(): Promise<web3.VoteAccountStatus> {
-  if (!voteAccounts) {
-    voteAccounts = await CONNECTION.getVoteAccounts()
+let singleVotePubkey: web3.PublicKey | undefined
+export async function getSingleVoteAccountPubkey(): Promise<web3.PublicKey> {
+  if (singleVotePubkey === undefined) {
+    const voteAccounts = await CONNECTION.getVoteAccounts()
+    // expecting run on localhost and only one vote account is available, i.e., one validator solana-test-validator
+    if (voteAccounts.current.length !== 1) {
+      throw new Error(
+        'Expected one vote account of solana-test-validator. Cannot continue in global local test setup.' +
+          ` Number of vote accounts found: ${voteAccounts.current.length}`
+      )
+    }
+    singleVotePubkey = new web3.PublicKey(voteAccounts.current[0].votePubkey)
   }
-  if (!voteAccounts) {
-    throw new Error(`Failed to get vote accounts from cluster ${PROVIDER_URL}`)
-  }
-  return voteAccounts
-}
 
-export async function getSingleVoteAccount(): Promise<web3.PublicKey> {
-  // expecting run on localhost and only one vote account is available
-  // which comes from solana-test-validator
-  const voteAccounts = await getVoteAccounts()
-  if (voteAccounts.current.length !== 1) {
-    throw new Error(
-      'Expected one vote account of solana-test-validator. Cannot continue in global local test setup.' +
-        ` Number of vote accounts found: ${voteAccounts.current.length}`
-    )
-  }
-  return new web3.PublicKey(voteAccounts.current[0].votePubkey)
+  return singleVotePubkey
 }
 
 // Used for local solana-test-validator testing.
@@ -217,7 +210,7 @@ export async function waitForStakeAccountActivation({
         `Waiting for the stake account ${stakeAccount.toBase58()} to be active at least for ${activatedAtLeastFor} epochs ` +
           `currently active for ${
             currentEpoch - stakeAccountActivationEpoch.toNumber()
-          } epochs`
+          } epoch(s)`
       )
     }
     while (
@@ -237,90 +230,6 @@ export async function waitForStakeAccountActivation({
       currentEpoch = (await connection.getEpochInfo()).epoch
     }
   }
-}
-
-export async function addValidatorInstructionBuilder({
-  marinade,
-  validatorScore,
-  validatorVote,
-  rentPayer,
-}: {
-  marinade: Marinade
-  validatorScore: number
-  validatorVote: web3.PublicKey
-  rentPayer: web3.PublicKey
-}): Promise<web3.TransactionInstruction> {
-  const marinadeState = await marinade.getMarinadeState()
-  return await marinade.marinadeFinanceProgram.program.methods
-    .addValidator(validatorScore)
-    .accountsStrict({
-      state: marinadeState.marinadeStateAddress,
-      validatorList: marinadeState.state.validatorSystem.validatorList.account,
-      rentPayer,
-      rent: web3.SYSVAR_RENT_PUBKEY,
-      validatorVote,
-      managerAuthority: marinadeState.state.validatorSystem.managerAuthority,
-      duplicationFlag: await marinadeState.validatorDuplicationFlag(
-        validatorVote
-      ),
-      clock: web3.SYSVAR_CLOCK_PUBKEY,
-      systemProgram: web3.SystemProgram.programId,
-    })
-    .instruction()
-}
-
-export async function waitForValidatorBeInMarinade({
-  marinade,
-  provider = PROVIDER,
-  stakeAccount = STAKE_ACCOUNT.publicKey,
-  timeoutSeconds = 30,
-  voteAccount,
-}: {
-  marinade: Marinade
-  provider?: AnchorProvider
-  stakeAccount?: web3.PublicKey
-  timeoutSeconds?: number
-  voteAccount?: web3.PublicKey
-}) {
-  if (!voteAccount) {
-    // when vote account is not provided then expecting the solana-test-validator
-    // is running on localhost and only one vote account is available
-    voteAccount = await getSingleVoteAccount()
-  }
-
-  // check if the validator is part of Marinade already
-  const marinadeState = await marinade.getMarinadeState()
-  const validators = await marinadeState.getValidatorRecords()
-  if (
-    validators.validatorRecords.findIndex(
-      v => v.validatorAccount.toBase58() === voteAccount!.toBase58()
-    ) !== -1
-  ) {
-    // validator is part of the Marinade already, doing nothing
-    return
-  }
-
-  // need to sign the add validator instruction with the marinade admin key
-  // here expecting the test admin key is configured in the marinade state onchain
-  expect(marinadeState.state.validatorSystem.managerAuthority).toEqual(
-    MARINADE_STATE_ADMIN.publicKey
-  )
-
-  await waitForStakeAccountActivation({
-    connection: provider.connection,
-    stakeAccount,
-    timeoutSeconds,
-    activatedAtLeastFor: 2,
-  })
-
-  const addIx = await addValidatorInstructionBuilder({
-    marinade,
-    validatorScore: 1000,
-    rentPayer: provider.wallet.publicKey,
-    validatorVote: voteAccount,
-  })
-  const addTx = new web3.Transaction().add(addIx)
-  await provider.sendAndConfirm(addTx, [MARINADE_STATE_ADMIN])
 }
 
 export const sleep = async (ms: number) => {

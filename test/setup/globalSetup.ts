@@ -6,7 +6,8 @@ require('ts-node/register')
 
 export default async (): Promise<void> => {
   // --- GETTING VOTE ACCOUNT of solana-test-validator ---
-  const voteAccount = await TestWorld.getSingleVoteAccount()
+  // as there is only solana-test-validator, it's a single vote account in the test network
+  const votePubkey = await TestWorld.getSingleVoteAccountPubkey()
 
   // --- CREATING STAKE ACCOUNT and DELEGATE ---
   // create a stake account that will be used later in all tests
@@ -26,7 +27,7 @@ export default async (): Promise<void> => {
   const ixDelegate = web3.StakeProgram.delegate({
     authorizedPubkey: TestWorld.PROVIDER.wallet.publicKey,
     stakePubkey: TestWorld.STAKE_ACCOUNT.publicKey,
-    votePubkey: voteAccount,
+    votePubkey,
   })
   tx.add(ixDelegate)
   await TestWorld.PROVIDER.sendAndConfirm(tx, [TestWorld.STAKE_ACCOUNT])
@@ -67,18 +68,58 @@ export default async (): Promise<void> => {
     )
   ) {
     throw new Error(
-      'Jest global setup error: Marinade expected to be configured with the TestWorld state admin.'
+      'Jest global setup error: Marinade state expected to be configured with the TestWorld admin authority.'
     )
   }
+  // check if the validator is part of Marinade already
+  const validators = await marinadeState.getValidatorRecords()
+  if (
+    validators.validatorRecords.findIndex(
+      v => v.validatorAccount.toBase58() === votePubkey.toBase58()
+    ) === -1
+  ) {
+    console.log(
+      `Validator vote account ${votePubkey.toBase58()} is not part of Marinade yet, adding it.`
+    )
+    const addIx = await addValidatorInstructionBuilder({
+      marinade,
+      validatorScore: 1000,
+      rentPayer: TestWorld.PROVIDER.wallet.publicKey,
+      validatorVote: votePubkey,
+    })
+    const addTx = new web3.Transaction().add(addIx)
+    await TestWorld.PROVIDER.sendAndConfirm(addTx, [
+      TestWorld.MARINADE_STATE_ADMIN,
+    ])
+  }
+}
 
-  const addIx = await TestWorld.addValidatorInstructionBuilder({
-    marinade,
-    validatorScore: 1000,
-    rentPayer: TestWorld.PROVIDER.wallet.publicKey,
-    validatorVote: voteAccount,
-  })
-  const addTx = new web3.Transaction().add(addIx)
-  await TestWorld.PROVIDER.sendAndConfirm(addTx, [
-    TestWorld.MARINADE_STATE_ADMIN,
-  ])
+async function addValidatorInstructionBuilder({
+  marinade,
+  validatorScore,
+  validatorVote,
+  rentPayer,
+}: {
+  marinade: Marinade
+  validatorScore: number
+  validatorVote: web3.PublicKey
+  rentPayer: web3.PublicKey
+}): Promise<web3.TransactionInstruction> {
+  const marinadeState = await marinade.getMarinadeState()
+  return await marinade.marinadeFinanceProgram.program.methods
+    .addValidator(validatorScore)
+    .accountsStrict({
+      state: marinadeState.marinadeStateAddress,
+      validatorList: marinadeState.state.validatorSystem.validatorList.account,
+      rentPayer,
+      rent: web3.SYSVAR_RENT_PUBKEY,
+      validatorVote,
+      managerAuthority: marinadeState.state.validatorSystem.managerAuthority,
+      duplicationFlag: await marinadeState.validatorDuplicationFlag(
+        validatorVote
+      ),
+      clock: web3.SYSVAR_CLOCK_PUBKEY,
+      systemProgram: web3.SystemProgram.programId,
+    })
+    .instruction()
 }
