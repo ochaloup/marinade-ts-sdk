@@ -4,8 +4,8 @@ import { Marinade, MarinadeConfig, MarinadeUtils } from '../src'
 import * as TestWorld from './test-world'
 
 describe('Marinade Referral', () => {
+  // adding MSOL liquidity as setup of all tests
   beforeAll(async () => {
-    // TODO: adding MSOL liquidity could be done in global setup of all tests probably
     const config = new MarinadeConfig({
       connection: TestWorld.CONNECTION,
       publicKey: TestWorld.SDK_USER.publicKey,
