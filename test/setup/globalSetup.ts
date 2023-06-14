@@ -45,7 +45,7 @@ export default async (): Promise<void> => {
   console.log(
     `Waiting for stake account ${TestWorld.STAKE_ACCOUNT.publicKey.toBase58()} to be activated`
   )
-  TestWorld.waitForStakeAccountActivation({
+  await TestWorld.waitForStakeAccountActivation({
     stakeAccount: TestWorld.STAKE_ACCOUNT.publicKey,
     connection: TestWorld.CONNECTION,
   })
