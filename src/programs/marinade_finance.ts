@@ -1737,6 +1737,20 @@ export type MarinadeFinance = {
           {
             name: 'withdrawStakeAccountEnabled'
             type: 'bool'
+          },
+          {
+            name: 'lastStakeMoveEpoch'
+            type: 'u64'
+          },
+          {
+            name: 'stakeMoved'
+            type: 'u64'
+          },
+          {
+            name: 'maxStakeMovedPerEpoch'
+            type: {
+              defined: 'Fee'
+            }
           }
         ]
       }
@@ -1989,12 +2003,6 @@ export type MarinadeFinance = {
             }
           },
           {
-            name: 'autoAddValidatorEnabled'
-            type: {
-              option: 'bool'
-            }
-          },
-          {
             name: 'withdrawStakeAccountEnabled'
             type: {
               option: 'bool'
@@ -2013,6 +2021,14 @@ export type MarinadeFinance = {
             type: {
               option: {
                 defined: 'FeeCents'
+              }
+            }
+          },
+          {
+            name: 'maxStakeMovedPerEpoch'
+            type: {
+              option: {
+                defined: 'Fee'
               }
             }
           }
@@ -2369,9 +2385,7 @@ export type MarinadeFinance = {
           },
           {
             name: 'autoAddValidatorEnabled'
-            docs: [
-              'allow & auto-add validator when a user deposits a stake-account of a non-listed validator'
-            ]
+            docs: ['DEPRECATED, no longer used']
             type: 'u8'
           }
         ]
@@ -2552,15 +2566,6 @@ export type MarinadeFinance = {
           index: false
         },
         {
-          name: 'autoAddValidatorEnabledChange'
-          type: {
-            option: {
-              defined: 'BoolValueChange'
-            }
-          }
-          index: false
-        },
-        {
           name: 'withdrawStakeAccountEnabledChange'
           type: {
             option: {
@@ -2583,6 +2588,15 @@ export type MarinadeFinance = {
           type: {
             option: {
               defined: 'FeeCentsValueChange'
+            }
+          }
+          index: false
+        },
+        {
+          name: 'maxStakeMovedPerEpochChange'
+          type: {
+            option: {
+              defined: 'FeeValueChange'
             }
           }
           index: false
@@ -3964,8 +3978,7 @@ export type MarinadeFinance = {
     },
     {
       code: 6027
-      name: 'AutoAddValidatorIsNotEnabled'
-      msg: 'Auto adding a validator is not enabled'
+      name: 'NotUsed6027'
     },
     {
       code: 6028
@@ -4094,8 +4107,8 @@ export type MarinadeFinance = {
     },
     {
       code: 6053
-      name: 'InvalidEmptyStakeBalance'
-      msg: 'Invalid empty stake balance'
+      name: 'MovingStakeIsCapped'
+      msg: 'Moving stake during an epoch is capped'
     },
     {
       code: 6054
@@ -6005,6 +6018,20 @@ export const IDL: MarinadeFinance = {
             name: 'withdrawStakeAccountEnabled',
             type: 'bool',
           },
+          {
+            name: 'lastStakeMoveEpoch',
+            type: 'u64',
+          },
+          {
+            name: 'stakeMoved',
+            type: 'u64',
+          },
+          {
+            name: 'maxStakeMovedPerEpoch',
+            type: {
+              defined: 'Fee',
+            },
+          },
         ],
       },
     },
@@ -6256,12 +6283,6 @@ export const IDL: MarinadeFinance = {
             },
           },
           {
-            name: 'autoAddValidatorEnabled',
-            type: {
-              option: 'bool',
-            },
-          },
-          {
             name: 'withdrawStakeAccountEnabled',
             type: {
               option: 'bool',
@@ -6280,6 +6301,14 @@ export const IDL: MarinadeFinance = {
             type: {
               option: {
                 defined: 'FeeCents',
+              },
+            },
+          },
+          {
+            name: 'maxStakeMovedPerEpoch',
+            type: {
+              option: {
+                defined: 'Fee',
               },
             },
           },
@@ -6636,9 +6665,7 @@ export const IDL: MarinadeFinance = {
           },
           {
             name: 'autoAddValidatorEnabled',
-            docs: [
-              'allow & auto-add validator when a user deposits a stake-account of a non-listed validator',
-            ],
+            docs: ['DEPRECATED, no longer used'],
             type: 'u8',
           },
         ],
@@ -6819,15 +6846,6 @@ export const IDL: MarinadeFinance = {
           index: false,
         },
         {
-          name: 'autoAddValidatorEnabledChange',
-          type: {
-            option: {
-              defined: 'BoolValueChange',
-            },
-          },
-          index: false,
-        },
-        {
           name: 'withdrawStakeAccountEnabledChange',
           type: {
             option: {
@@ -6850,6 +6868,15 @@ export const IDL: MarinadeFinance = {
           type: {
             option: {
               defined: 'FeeCentsValueChange',
+            },
+          },
+          index: false,
+        },
+        {
+          name: 'maxStakeMovedPerEpochChange',
+          type: {
+            option: {
+              defined: 'FeeValueChange',
             },
           },
           index: false,
@@ -8231,8 +8258,7 @@ export const IDL: MarinadeFinance = {
     },
     {
       code: 6027,
-      name: 'AutoAddValidatorIsNotEnabled',
-      msg: 'Auto adding a validator is not enabled',
+      name: 'NotUsed6027',
     },
     {
       code: 6028,
@@ -8361,8 +8387,8 @@ export const IDL: MarinadeFinance = {
     },
     {
       code: 6053,
-      name: 'InvalidEmptyStakeBalance',
-      msg: 'Invalid empty stake balance',
+      name: 'MovingStakeIsCapped',
+      msg: 'Moving stake during an epoch is capped',
     },
     {
       code: 6054,
