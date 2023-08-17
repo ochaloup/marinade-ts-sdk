@@ -57,6 +57,12 @@ export namespace MarinadeResult {
     transaction: web3.Transaction
   }
 
+  export interface WithdrawStakeAccount {
+    associatedMSolTokenAccountAddress: web3.PublicKey
+    splitStakeAccountKeypair: web3.Keypair
+    transaction: web3.Transaction
+  }
+
   export interface Claim {
     transaction: web3.Transaction
   }

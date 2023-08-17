@@ -71,6 +71,11 @@ export class MarinadeState {
       ProgramDerivedAddressSeed.LIQ_POOL_SOL_ACCOUNT
     )
 
+  stakeDepositAuthority = async () =>
+    this.findProgramDerivedAddress(ProgramDerivedAddressSeed.STAKE_DEPOSIT)
+  stakeWithdrawAuthority = async () =>
+    this.findProgramDerivedAddress(ProgramDerivedAddressSeed.STAKE_WITHDRAW)
+
   private async findProgramDerivedAddress(
     seed: ProgramDerivedAddressSeed,
     extraSeeds: Buffer[] = []

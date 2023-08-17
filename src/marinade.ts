@@ -1351,4 +1351,82 @@ export class Marinade {
       transaction,
     }
   }
+
+  /**
+   * Returns a transaction with the instructions to withdraw stake account.
+   *
+   * @param {BN} msolAmount - The amount of mSOL in lamports to order for unstaking
+   * @param {web3.PublicKey} stakeAccountAddress - The stake account to be withdrawn
+   */
+  async withdrawStakeAccount(
+    msolAmount: BN | number,
+    stakeAccountAddress: web3.PublicKey
+  ): Promise<MarinadeResult.WithdrawStakeAccount> {
+    const ownerAddress = assertNotNullAndReturn(
+      this.config.publicKey,
+      ErrorMessage.NO_PUBLIC_KEY
+    )
+    const marinadeState = await this.getMarinadeState()
+
+    const associatedMSolTokenAccountAddress =
+      await getAssociatedTokenAccountAddress(
+        marinadeState.mSolMintAddress,
+        ownerAddress
+      )
+
+    const splitStakeAccountKeypair = Keypair.generate()
+
+    const stakeAccountInfo = await getParsedStakeAccountInfo(
+      this.provider,
+      stakeAccountAddress
+    )
+    if (!stakeAccountInfo.voterAddress) {
+      throw new Error(
+        `Votes of stake account ${stakeAccountAddress.toBase58()} could not be fetched/parsed.`
+      )
+    }
+
+    const { validatorRecords } = await marinadeState.getValidatorRecords()
+    const validatorIndex = validatorRecords.findIndex(({ validatorAccount }) =>
+      validatorAccount.equals(stakeAccountInfo.voterAddress!)
+    )
+    if (validatorIndex === -1) {
+      throw new Error(
+        `Validator ${stakeAccountInfo.voterAddress!.toBase58()} of ` +
+          `stake account ${stakeAccountAddress.toBase58()}is not recognized by Marinade.`
+      )
+    }
+
+    const { stakeRecords } = await marinadeState.getStakeRecords()
+    const stakeIndex = stakeRecords.findIndex(({ stakeAccount }) =>
+      stakeAccount.equals(stakeAccountAddress)
+    )
+    if (stakeIndex === -1) {
+      throw new Error(
+        `Stake account ${stakeAccountAddress.toBase58()} is not recognized by Marinade.`
+      )
+    }
+
+    const program = this.marinadeFinanceProgram
+    const orderUnstakeInstruction = await program.withdrawStakeAccount({
+      marinadeState,
+      ownerAddress,
+      associatedMSolTokenAccountAddress,
+      stakeAccountAddress,
+      splitStakeAccountAddress: splitStakeAccountKeypair.publicKey,
+      splitStakeRentPayer: ownerAddress,
+      validatorIndex,
+      stakeIndex,
+      msolAmount: new BN(msolAmount),
+      beneficiary: ownerAddress,
+    })
+
+    const transaction = new web3.Transaction().add(orderUnstakeInstruction)
+
+    return {
+      associatedMSolTokenAccountAddress,
+      splitStakeAccountKeypair,
+      transaction,
+    }
+  }
 }
