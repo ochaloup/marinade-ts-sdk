@@ -1,3 +1,11 @@
+## v5.0.6
+
+### Feat:
+
+    - Add beta support to (partially) deposit activating stake accounts via `depositActivatingStakeAccount`
+    - Add `withdrawStakeAccount` SDK call
+
+
 ## v5.0.5
 
 ### Feat:
