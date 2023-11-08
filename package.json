@@ -1,6 +1,6 @@
 {
   "name": "@marinade.finance/marinade-ts-sdk",
-  "version": "5.0.6-alpha",
+  "version": "5.0.6-beta",
   "description": "Marinade SDK for Typescript",
   "main": "dist/src/index.js",
   "repository": {

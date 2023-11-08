@@ -91,4 +91,7 @@ export interface MarinadeStateResponse {
   delayedUnstakeFee: MarinadeStateResponse.FeeCents
   withdrawStakeAccountFee: MarinadeStateResponse.FeeCents
   withdrawStakeAccountEnabled: boolean
+  lastStakeMoveEpoch: BN
+  stakeMoved: BN
+  maxStakeMovedPerEpoch: MarinadeStateResponse.Fee
 }

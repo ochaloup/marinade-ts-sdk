@@ -288,4 +288,10 @@ export class MarinadeState {
    * Commission in %
    */
   rewardsCommissionPercent: number = this.state.rewardFee.basisPoints / 100
+
+  /**
+   * Max Stake moved per epoch in %
+   */
+  maxStakeMovedPerEpoch: number =
+    this.state.maxStakeMovedPerEpoch.basisPoints / 100
 }
